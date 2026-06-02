@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLO – Property Editor Prototype</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1c1c1c;
+  color: #d0d0d0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 80px;
+}
+
+.panel {
+  width: 340px;
+  background: #2b2b2b;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── Title bar ── */
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #222;
+  border-bottom: 1px solid #3a3a3a;
+  color: #c8c8c8;
+  font-size: 12px;
+  font-weight: 500;
+}
+.title-bar .tb-icons { display: flex; gap: 4px; }
+.tb-icon { font-size: 14px; color: #777; cursor: pointer; padding: 1px 3px; }
+.tb-icon:hover { color: #bbb; }
+
+/* ── Section rows (Fabric, Information, Material, Physical Property) ── */
+.top-section {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-bottom: 1px solid #313131;
+  min-height: 28px;
+  gap: 6px;
+  cursor: pointer;
+}
+.top-section:hover { background: #2e2e2e; }
+
+.ts-chevron {
+  font-size: 8px; color: #777; width: 10px; flex-shrink: 0;
+  transition: transform 0.15s; display: inline-block;
+}
+.ts-chevron.open { transform: rotate(90deg); }
+.ts-chevron.leaf { visibility: hidden; }
+
+.ts-label {
+  font-size: 12px; font-weight: 500; flex: 1;
+}
+.ts-label.blue { color: #5ba3e8; }
+.ts-label.gray { color: #b0b0b0; }
+
+.ts-right { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.ts-dropdown {
+  background: #1a1a1a;
+  border: 1px solid #484848;
+  border-radius: 2px;
+  color: #d0d0d0;
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+  min-width: 70px;
+}
+.ts-icon { font-size: 13px; color: #777; cursor: pointer; padding: 1px 2px; }
+.ts-icon:hover { color: #bbb; }
+.ts-info { font-size: 13px; color: #555; cursor: pointer; }
+
+/* ── Preset row ── */
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 22px;
+  border-bottom: 1px solid #313131;
+  background: #282828;
+}
+.preset-label { color: #999; min-width: 38px; font-size: 11px; }
+.preset-select {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #484848;
+  border-radius: 2px;
+  color: #d0d0d0;
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.preset-icons { display: flex; gap: 2px; }
+.p-icon { font-size: 13px; color: #666; cursor: pointer; padding: 1px 2px; }
+.p-icon:hover { color: #bbb; }
+
+/* ── Detail header ── */
+.detail-hdr {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px 5px 22px;
+  border-bottom: 1px solid #313131;
+  cursor: pointer;
+  background: #282828;
+}
+.detail-hdr:hover { background: #2e2e2e; }
+.dh-chev { font-size: 8px; color: #777; width: 10px; flex-shrink: 0; transition: transform 0.15s; display: inline-block; }
+.dh-chev.open { transform: rotate(90deg); }
+.dh-label { flex: 1; padding-left: 4px; color: #c0c0c0; font-size: 12px; font-weight: 500; }
+.wrench { font-size: 13px; color: #666; cursor: pointer; }
+
+/* ── Property group (Stretch, Bending…) ── */
+.prop-group { border-bottom: 1px solid #2a2a2a; }
+
+.group-hdr {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px 4px 28px;
+  min-height: 24px;
+  gap: 5px;
+  background: #252525;
+  cursor: pointer;
+}
+.group-hdr:hover { background: #2c2c2c; }
+.g-chev { font-size: 8px; color: #666; width: 10px; flex-shrink: 0; transition: transform 0.12s; display: inline-block; }
+.g-chev.open { transform: rotate(90deg); }
+.g-name { flex: 1; color: #aaa; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; }
+
+/* Link toggle — styled as the diamond ◇ button family */
+.link-btn {
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; flex-shrink: 0;
+  font-size: 13px; padding: 0; line-height: 1;
+  color: #555; transition: color 0.1s;
+}
+.link-btn.linked { color: #5ba3e8; }
+.link-btn:hover { color: #9ab; }
+
+/* ── Group range slider row ── */
+/* Pill thumb spans from minVal% to maxVal% on the track.
+   Dragging shifts ALL values by delta, spread preserved.
+   Left label inside pill = min, right label = max.
+   Thumb cannot travel beyond track edges (0–100). */
+.g-range-row {
+  padding: 4px 10px 7px 38px;
+  background: #252525;
+  display: flex;
+  align-items: center;
+}
+.g-range-row.hidden { display: none; }
+
+/* Track + pill container */
+.g-track-wrap {
+  flex: 1;
+  position: relative;
+  height: 18px;
+  display: flex;
+  align-items: center;
+}
+.g-track {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  background: #484848;
+  border-radius: 2px;
+}
+/* The draggable pill thumb */
+.g-thumb {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  height: 16px;
+  min-width: 28px;
+  background: #505866;
+  border: 1px solid #6a7a8a;
+  border-radius: 8px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  user-select: none;
+  transition: background 0.1s;
+}
+.g-thumb:hover { background: #5a6876; }
+.g-thumb:active { cursor: grabbing; background: #6a7a8a; }
+.g-thumb .tv { /* value label inside pill */
+  font-size: 10px;
+  color: #d0d8e0;
+  line-height: 1;
+  white-space: nowrap;
+}
+.g-thumb .tv.lo { text-align: left; }
+.g-thumb .tv.hi { text-align: right; }
+
+/* ── Sub items ── */
+.sub-items.hidden { display: none; }
+
+.sub-item { border-top: 1px solid #282828; }
+
+/* Sub row: ▶  Stretch-Weft        [53] ◇
+            ━━━━━●━━━━━━━━━━━━━━━━━━   */
+.sub-row {
+  display: flex; align-items: center;
+  padding: 0 10px 0 32px;
+  min-height: 22px; gap: 6px;
+  cursor: pointer;
+}
+.sub-row:hover { background: #2d2d2d; }
+.s-chev { font-size: 8px; color: #555; width: 10px; flex-shrink: 0; transition: transform 0.12s; display: inline-block; }
+.s-chev.open { transform: rotate(90deg); }
+.s-name { flex: 1; color: #b8b8b8; font-size: 12px; }
+
+/* CLO-style value box */
+.val-box {
+  width: 40px; background: #1a1a1a;
+  border: 1px solid #484848; border-radius: 2px;
+  color: #d0d0d0; font-size: 12px;
+  text-align: right; padding: 1px 4px; line-height: 1.5;
+}
+.val-box:focus { outline: none; border-color: #5a8fca; }
+.val-box:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* CLO diamond reset button */
+.diamond { width: 16px; height: 16px; color: #555; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.diamond:hover { color: #999; }
+
+/* Sub slider (inside the row, beneath name+value) */
+.sub-slider-row {
+  padding: 1px 10px 4px 42px;
+}
+.sub-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px;
+  background: #484848; border-radius: 2px;
+  outline: none; cursor: pointer;
+}
+.sub-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #d0d0d0; cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.sub-slider:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Expand area: constant value */
+.sub-expand { padding: 3px 10px 5px 42px; background: #212121; }
+.sub-expand.hidden { display: none; }
+.const-row { display: flex; align-items: center; gap: 6px; }
+.const-label { color: #666; flex: 1; font-size: 11px; }
+.const-input {
+  width: 78px; background: #1a1a1a;
+  border: 1px solid #3e3e3e; border-radius: 2px;
+  color: #aaa; font-size: 11px;
+  text-align: right; padding: 2px 4px;
+}
+.const-input:focus { outline: none; border-color: #5a8fca; }
+.const-input:disabled { opacity: 0.4; cursor: not-allowed; }
+.const-unit { color: #555; font-size: 11px; min-width: 28px; }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <!-- Title bar -->
+  <div class="title-bar">
+    <span class="tb-icon">→</span>
+    <span>Property Editor</span>
+    <div class="tb-icons">
+      <span class="tb-icon">↙</span>
+    </div>
+  </div>
+
+  <!-- Fabric row -->
+  <div class="top-section">
+    <span class="ts-chevron leaf">▶</span>
+    <span class="ts-label gray">Fabric</span>
+    <div class="ts-right">
+      <span class="ts-icon">📂</span>
+      <span class="ts-icon">💾</span>
+      <span class="ts-icon" style="color:#3ad">↻</span>
+    </div>
+  </div>
+
+  <!-- Information -->
+  <div class="top-section">
+    <span class="ts-chevron" id="info-chev">▶</span>
+    <span class="ts-label blue">Information</span>
+    <div class="ts-right"><span class="ts-info">ℹ</span></div>
+  </div>
+
+  <!-- Material -->
+  <div class="top-section">
+    <span class="ts-chevron" id="mat-chev">▶</span>
+    <span class="ts-label blue">Material</span>
+    <div class="ts-right">
+      <select class="ts-dropdown"><option>PBR</option><option>Classic</option></select>
+      <span class="ts-icon">↻</span>
+      <span class="ts-icon" style="color:#a3e">🎨</span>
+    </div>
+  </div>
+
+  <!-- Physical Property -->
+  <div class="top-section">
+    <span class="ts-chevron open" id="pp-chev">▶</span>
+    <span class="ts-label blue">Physical Property</span>
+    <div class="ts-right">
+      <select class="ts-dropdown"><option>Fabric</option><option>Button</option><option>Zipper</option></select>
+    </div>
+  </div>
+
+  <!-- Physical Property body -->
+  <div id="pp-body">
+
+    <!-- Preset -->
+    <div class="preset-row">
+      <span class="preset-label">Preset</span>
+      <select class="preset-select">
+        <option>Custom</option><option>Cotton</option><option>Silk</option><option>Denim</option><option>Polyester</option>
+      </select>
+      <div class="preset-icons">
+        <span class="p-icon">📂</span>
+        <span class="p-icon">💾</span>
+      </div>
+    </div>
+
+    <!-- Detail -->
+    <div class="detail-hdr" id="detail-hdr">
+      <span class="dh-chev open" id="dh-chev">▶</span>
+      <span class="dh-label">Detail</span>
+      <span class="wrench">🔧</span>
+    </div>
+
+    <div id="detail-body">
+      <!-- groups injected by JS -->
+    </div>
+
+  </div><!-- /pp-body -->
+</div>
+
+<script>
+// ─── Data ─────────────────────────────────────────────────────────────────
+// Shear is now INSIDE Stretch group, as requested
+const GROUPS = [
+  {
+    id: 'stretch', name: 'Stretch',
+    items: [
+      { id: 'sw',  label: 'Stretch-Weft',         preset: 53, cVal: 360000, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 700000 },
+      { id: 'sa',  label: 'Stretch-Warp',         preset: 58, cVal: 395000, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 700000 },
+      { id: 'sr',  label: 'Shear (Right)',         preset: 43, cVal: 125000, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 300000 },
+      { id: 'sl',  label: 'Shear (Left)',          preset: 9,  cVal: 22000,  cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 300000 },
+    ]
+  },
+  {
+    id: 'bending', name: 'Bending',
+    items: [
+      { id: 'bw',  label: 'Bending-Weft',         preset: 14, cVal: 0.0035, cUnit: 'N·m', cLabel: 'Stiffness', cMin: 0, cMax: 0.025 },
+      { id: 'ba',  label: 'Bending-Warp',         preset: 37, cVal: 0.0093, cUnit: 'N·m', cLabel: 'Stiffness', cMin: 0, cMax: 0.025 },
+      { id: 'bbr', label: 'Bending-Bias (Right)',  preset: 17, cVal: 0.0043, cUnit: 'N·m', cLabel: 'Stiffness', cMin: 0, cMax: 0.025 },
+      { id: 'bbl', label: 'Bending-Bias (Left)',   preset: 17, cVal: 0.0043, cUnit: 'N·m', cLabel: 'Stiffness', cMin: 0, cMax: 0.025 },
+    ]
+  },
+  {
+    id: 'buckrat', name: 'Buckling Ratio',
+    items: [
+      { id: 'brw',  label: 'Buckling Ratio-Weft',         preset: 0, cVal: 0, cUnit: '',     cLabel: 'Ratio', cMin: 0, cMax: 1 },
+      { id: 'bra',  label: 'Buckling Ratio-Warp',         preset: 0, cVal: 0, cUnit: '',     cLabel: 'Ratio', cMin: 0, cMax: 1 },
+      { id: 'brbr', label: 'Buckling Ratio-Bias (Right)', preset: 0, cVal: 0, cUnit: '',     cLabel: 'Ratio', cMin: 0, cMax: 1 },
+      { id: 'brbl', label: 'Buckling Ratio-Bias (Left)',  preset: 0, cVal: 0, cUnit: '',     cLabel: 'Ratio', cMin: 0, cMax: 1 },
+    ]
+  },
+  {
+    id: 'buckstf', name: 'Buckling Stiffness',
+    items: [
+      { id: 'bsw',  label: 'Buckling Stiffness-Weft',         preset: 0, cVal: 0, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 500000 },
+      { id: 'bsa',  label: 'Buckling Stiffness-Warp',         preset: 0, cVal: 0, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 500000 },
+      { id: 'bsbr', label: 'Buckling Stiffness-Bias (Right)', preset: 0, cVal: 0, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 500000 },
+      { id: 'bsbl', label: 'Buckling Stiffness-Bias (Left)',  preset: 0, cVal: 0, cUnit: 'g/s²', cLabel: 'Stiffness', cMin: 0, cMax: 500000 },
+    ]
+  },
+];
+
+// ─── State ─────────────────────────────────────────────────────────────────
+const GS = {}; // group state: { linked, open }
+const IS = {}; // item state:  { preset, cVal, subOpen }
+
+GROUPS.forEach(g => {
+  GS[g.id] = { linked: false, open: true };
+  g.items.forEach(it => {
+    IS[it.id] = { preset: it.preset, cVal: it.cVal, subOpen: false };
+  });
+});
+
+// ─── Render ────────────────────────────────────────────────────────────────
+function render() {
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '';
+  GROUPS.forEach(g => body.appendChild(makeGroup(g)));
+}
+
+function makeGroup(g) {
+  const gs = GS[g.id];
+  const presets = g.items.map(it => IS[it.id].preset);
+  const minP = Math.min(...presets);
+  const maxP = Math.max(...presets);
+  // Thumb position = average, clamped so full spread fits in 0-100
+  const avg  = Math.round(presets.reduce((a, b) => a + b, 0) / presets.length);
+
+  const wrap = el('div', 'prop-group');
+
+  // ── Group header ──
+  const hdr = el('div', 'group-hdr');
+  const chev = el('span', `g-chev${gs.open ? ' open' : ''}`);
+  chev.textContent = '▶';
+  const name = el('span', 'g-name');
+  name.textContent = g.name;
+  const lbtn = el('button', `link-btn${gs.linked ? ' linked' : ''}`);
+  lbtn.title = gs.linked ? 'Unlink (edit individually)' : 'Link (move all together)';
+  lbtn.textContent = '⛓';
+
+  hdr.append(chev, name, lbtn);
+  hdr.onclick = e => { if (e.target === lbtn) return; gs.open = !gs.open; render(); };
+  lbtn.onclick = e => { e.stopPropagation(); gs.linked = !gs.linked; render(); };
+  wrap.appendChild(hdr);
+
+  // ── Group range row ──
+  // Pill thumb: left edge = minVal%, right edge = maxVal% on the track.
+  // Dragging shifts all values by delta. Thumb constrained to track edges.
+  const rangeRow = el('div', `g-range-row${gs.open ? '' : ' hidden'}`);
+
+  const trackWrap = el('div', 'g-track-wrap');
+  const track = el('div', 'g-track');
+
+  const thumb = el('div', 'g-thumb');
+  thumb.id = `gthumb-${g.id}`;
+  const tvLo = el('span', 'tv lo'); tvLo.id = `tvlo-${g.id}`; tvLo.textContent = minP;
+  const tvHi = el('span', 'tv hi'); tvHi.id = `tvhi-${g.id}`; tvHi.textContent = maxP;
+  thumb.append(tvLo, tvHi);
+
+  trackWrap.append(track, thumb);
+  rangeRow.appendChild(trackWrap);
+  wrap.appendChild(rangeRow);
+
+  // Position pill after DOM insertion (needs layout)
+  requestAnimationFrame(() => positionThumb(g.id));
+
+  // ── Drag logic ──
+  let dragStartX = null, dragStartMin = null;
+
+  thumb.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragStartX   = e.clientX;
+    const ps     = g.items.map(it => IS[it.id].preset);
+    dragStartMin = Math.min(...ps);
+
+    const onMove = mv => {
+      const tw      = trackWrap.getBoundingClientRect().width;
+      if (!tw) return;
+      const pxDelta = mv.clientX - dragStartX;
+      const pDelta  = (pxDelta / tw) * 100;
+
+      const ps2    = g.items.map(it => IS[it.id].preset);
+      const curMin = Math.min(...ps2);
+      const curMax = Math.max(...ps2);
+      const spread = curMax - curMin;
+
+      // Clamp delta so min ≥ 0 and max ≤ 100
+      const rawTarget = dragStartMin + pDelta;
+      const clampedMin = Math.max(0, Math.min(100 - spread, rawTarget));
+      const delta = clampedMin - curMin;
+
+      if (Math.abs(delta) < 0.4) return;
+      applyDelta(g, delta);
+      updateGroupUI(g);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+
+  // ── Sub items ──
+  const subs = el('div', `sub-items${gs.open ? '' : ' hidden'}`);
+  g.items.forEach(it => subs.appendChild(makeSubItem(it, gs.linked)));
+  wrap.appendChild(subs);
+
+  return wrap;
+}
+
+/* Apply delta to all items — spread preserved, clamped 0–100 */
+function applyDelta(g, delta) {
+  if (Math.abs(delta) < 0.01) return;
+  g.items.forEach(it => {
+    IS[it.id].preset = Math.max(0, Math.min(100, IS[it.id].preset + delta));
+  });
+  // Round after all applied
+  g.items.forEach(it => { IS[it.id].preset = Math.round(IS[it.id].preset); });
+}
+
+/* Reposition pill thumb + update sub-row inputs without full re-render */
+function updateGroupUI(g) {
+  const ps     = g.items.map(it => IS[it.id].preset);
+  const minP   = Math.min(...ps);
+  const maxP   = Math.max(...ps);
+  const lo = document.getElementById(`tvlo-${g.id}`);
+  const hi = document.getElementById(`tvhi-${g.id}`);
+  if (lo) lo.textContent = minP;
+  if (hi) hi.textContent = maxP;
+  positionThumb(g.id);
+
+  g.items.forEach(it => {
+    const vb = document.getElementById(`vb-${it.id}`);
+    const ss = document.getElementById(`ss-${it.id}`);
+    const cv = document.getElementById(`cv-${it.id}`);
+    if (vb) vb.value = IS[it.id].preset;
+    if (ss) ss.value = IS[it.id].preset;
+    if (cv) cv.value = fmtC(it, IS[it.id].preset);
+  });
+}
+
+/* Position pill: left = minVal%, width = spread% of track */
+function positionThumb(gid) {
+  const thumb = document.getElementById(`gthumb-${gid}`);
+  if (!thumb) return;
+  const wrap  = thumb.parentElement;
+  if (!wrap) return;
+  const tw    = wrap.getBoundingClientRect().width;
+  if (!tw) return;
+
+  const g     = GROUPS.find(x => x.id === gid);
+  if (!g) return;
+  const ps    = g.items.map(it => IS[it.id].preset);
+  const minP  = Math.min(...ps);
+  const maxP  = Math.max(...ps);
+  const spread = maxP - minP;
+
+  const leftPx  = (minP / 100) * tw;
+  const widthPx = Math.max(28, (spread / 100) * tw);
+
+  thumb.style.left  = leftPx + 'px';
+  thumb.style.width = widthPx + 'px';
+}
+
+function makeSubItem(it, linked) {
+  const s = IS[it.id];
+  const wrap = el('div', 'sub-item');
+
+  // Row
+  const row = el('div', 'sub-row');
+  const schev = el('span', `s-chev${s.subOpen ? ' open' : ''}`);
+  schev.textContent = '▶';
+  const sname = el('span', 's-name');
+  sname.textContent = it.label;
+
+  const vb = document.createElement('input');
+  vb.type = 'number'; vb.className = 'val-box'; vb.id = `vb-${it.id}`;
+  vb.min = 0; vb.max = 100; vb.value = s.preset;
+  vb.disabled = linked;
+
+  const dia = el('span', 'diamond');
+  dia.textContent = '◇'; dia.title = 'Reset to default';
+
+  row.append(schev, sname, vb, dia);
+  row.onclick = e => {
+    if (e.target === vb || e.target === dia) return;
+    s.subOpen = !s.subOpen;
+    schev.classList.toggle('open', s.subOpen);
+    exp.classList.toggle('hidden', !s.subOpen);
+  };
+  vb.oninput = () => {
+    const v = clamp(+vb.value);
+    s.preset = v;
+    if (ss) ss.value = v;
+    if (cv) cv.value = fmtC(it, v);
+    const g = GROUPS.find(x => x.items.some(i => i.id === it.id));
+    if (g) updateGroupUI(g);
+  };
+  wrap.appendChild(row);
+
+  // Slider row (always visible below name row — matches CLO layout)
+  const slRow = el('div', 'sub-slider-row');
+  const ss = document.createElement('input');
+  ss.type = 'range'; ss.className = 'sub-slider'; ss.id = `ss-${it.id}`;
+  ss.min = 0; ss.max = 100; ss.value = s.preset;
+  ss.disabled = linked;
+  ss.oninput = () => {
+    s.preset = +ss.value;
+    vb.value = s.preset;
+    if (cv) cv.value = fmtC(it, s.preset);
+    const g = GROUPS.find(x => x.items.some(i => i.id === it.id));
+    if (g) updateGroupUI(g);
+  };
+  slRow.appendChild(ss);
+  wrap.appendChild(slRow);
+
+  // Expand: constant value
+  const exp = el('div', `sub-expand${s.subOpen ? '' : ' hidden'}`);
+  const cRow = el('div', 'const-row');
+  const clbl = el('span', 'const-label');
+  clbl.textContent = it.cLabel;
+
+  const cv = document.createElement('input');
+  cv.type = 'number'; cv.className = 'const-input'; cv.id = `cv-${it.id}`;
+  cv.value = fmtC(it, s.preset); cv.disabled = linked;
+  cv.step = 'any';
+  cv.oninput = () => {
+    const raw = parseFloat(cv.value) || 0;
+    const p = Math.round(((raw - it.cMin) / (it.cMax - it.cMin)) * 100);
+    s.preset = clamp(p);
+    vb.value = s.preset;
+    if (ss) ss.value = s.preset;
+  };
+
+  const cunit = el('span', 'const-unit');
+  cunit.textContent = it.cUnit;
+
+  cRow.append(clbl, cv, cunit);
+  exp.appendChild(cRow);
+  wrap.appendChild(exp);
+
+  return wrap;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function el(tag, cls) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+function clamp(v) { return Math.max(0, Math.min(100, v)); }
+function fmtC(it, preset) {
+  const v = it.cMin + (preset / 100) * (it.cMax - it.cMin);
+  return v < 1 && v > 0 ? +v.toFixed(6) : Math.round(v);
+}
+
+// ─── Top section toggles ───────────────────────────────────────────────────
+document.getElementById('pp-chev').parentElement.onclick = function(e) {
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+  const chev = document.getElementById('pp-chev');
+  const body = document.getElementById('pp-body');
+  const open = chev.classList.toggle('open');
+  body.style.display = open ? '' : 'none';
+};
+
+document.getElementById('detail-hdr').onclick = function() {
+  const chev = document.getElementById('dh-chev');
+  const body = document.getElementById('detail-body');
+  const open = chev.classList.toggle('open');
+  body.style.display = open ? '' : 'none';
+};
+
+render();
+requestAnimationFrame(() => GROUPS.forEach(g => positionThumb(g.id)));
+</script>
+</body>
+</html>
